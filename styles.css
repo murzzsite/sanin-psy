@@ -237,7 +237,7 @@ details[open] p{animation:fadeup .5s var(--ease)}
 .lightbox::backdrop{background:rgba(20,32,43,.72)}
 .lightbox img{width:100%;height:auto}
 .lightbox__x{position:sticky;bottom:0;display:block;width:100%;min-height:52px;border:0;background:var(--ink);color:var(--paper);font:500 17px var(--f-b);cursor:pointer}
-.contact__pic{margin-top:clamp(32px,4vw,56px);width:min(100%,380px);aspect-ratio:4/5;object-fit:cover}
+.contact__pic{margin-top:clamp(32px,4vw,56px);width:min(100%,340px);height:auto;aspect-ratio:900/1351;object-fit:cover}
 
 .sticky-cta{display:none}
 
@@ -260,7 +260,7 @@ details[open] p{animation:fadeup .5s var(--ease)}
   .stages{min-height:13em}
   .says{width:48%}
   .docs__list{grid-template-columns:1fr 1fr}
-  .contact__pic{aspect-ratio:16/10;width:100%}
+  .contact__pic{width:min(100%,300px)}
   .pick__grid,.req__cols,.about__grid,.proof__grid,.faq__grid,.contact__grid{grid-template-columns:1fr}
   .faq__grid .h2{position:static}
   .pick__out{grid-template-columns:1fr}
