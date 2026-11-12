@@ -1,4 +1,11 @@
 const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6';
+// Яндекс Метрика: впишите номер счётчика, цели form_submit и telegram_click заработают сразу
+const YM_ID = 0;
+if (YM_ID) {
+  (function (m, e, t, r, i, k, a) { m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments); }; m[i].l = 1 * new Date(); k = e.createElement(t); a = e.getElementsByTagName(t)[0]; k.async = 1; k.src = r; a.parentNode.insertBefore(k, a); })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
+  ym(YM_ID, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: false });
+}
+const goal = name => { try { if (YM_ID && window.ym) ym(YM_ID, 'reachGoal', name); } catch (e) {} };
 
 (() => {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -108,10 +115,10 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
 
   /* ---------- reveal ---------- */
   const rev = $$('[data-r]');
-  if ('IntersectionObserver' in window && !reduce) {
+  if ('IntersectionObserver' in window && window.innerWidth > 600) {
     const io = new IntersectionObserver(es => es.forEach(e => {
       if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
-    }), { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    }), { threshold: 0.01, rootMargin: '0px 0px 10% 0px' });
     const seen = new Map();
     rev.forEach(el => {
       const p = el.parentElement; const n = seen.get(p) || 0; seen.set(p, n + 1);
@@ -139,40 +146,73 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
     io.observe(el);
   });
 
-  /* ---------- scroll scene ---------- */
+  /* ---------- scene: the circle, stepped by click ---------- */
   const scene = $('#circle'), sceneSvg = $('#sceneSvg');
   const sg = makeRing(sceneSvg, { cx: 320, cy: 320, R: 228, r: 30, band: '#B4CCC9', bandW: 40, ghosts: 8 });
-  const stages = $$('.stage'), bar = $('#sceneBar'), saysC = $('#saysC'), saysT = $('#saysT');
+  const stages = $$('.stage'), tabs = $$('.steps__tab'), nextBtn = $('#sceneNext'), saysC = $('#saysC'), saysT = $('#saysT');
   const says = [
     ['Ты меня не слышишь!', 'Мне нужна тишина.'],
     ['Ты меня не слышишь!', 'Мне нужна тишина.'],
     ['Тебе вообще важно, что со мной?', 'Что ни скажу, будет хуже.'],
     ['Мне страшно тебя потерять.', 'Я хочу быть рядом.']
   ];
-  let curStage = -1, lastA = 0, sp = 0;
-  const setStage = i => {
+  const STEP_P = [0.1, 0.38, 0.62, 1];
+  let curStage = -1, curP = STEP_P[0], fromP = curP, tgtP = curP, tStart = 0, lastAc = 0, sp = 0.05, drift = 0, sceneVisible = true;
+  const seg = (p, a, b) => smooth(clamp((p - a) / (b - a)));
+  function setStage(i) {
     if (i === curStage) return;
     curStage = i;
     stages.forEach((s, k) => s.classList.toggle('is-on', k === i));
+    tabs.forEach((t, k) => { t.classList.toggle('is-on', k === i); t.setAttribute('aria-selected', k === i); });
+    nextBtn.firstElementChild.textContent = i === 3 ? 'Записаться на консультацию' : 'Дальше';
     [saysC, saysT].forEach((el, k) => {
       el.classList.add('swap');
       setTimeout(() => { el.textContent = says[i][k]; el.classList.remove('swap'); }, 250);
     });
-  };
-  const seg = (p, a, b) => smooth(clamp((p - a) / (b - a)));
+  }
   function renderScene(p) {
     const A = TAU * 3 * (1 - Math.cos(Math.PI * clamp(p / 0.72))) / 2;
     const gap = lerp(lerp(lerp(0.9, 1.5, seg(p, 0.2, 0.5)), 2.5, seg(p, 0.5, 0.72)), 0.26, seg(p, 0.74, 0.95));
     const cOff = lerp(0, -0.13, seg(p, 0.74, 0.95));
-    const base = -Math.PI / 2;
-    const ac = base + A + cOff, at = ac + gap;
-    const dA = Math.abs(A - lastA); lastA = A;
-    sp = lerp(sp, Math.min(0.14, dA * 9), 0.25);
+    const ac = -Math.PI / 2 + A + cOff + drift * (1 - seg(p, 0.5, 0.72)), at = ac + gap;
+    sp = lerp(sp, Math.min(0.15, 0.03 + Math.abs(ac - lastAc) * 8), 0.2); lastAc = ac;
     draw(sg, ac, at, sp);
     setBand(sg, lerp(0, 0.6, seg(p, 0.78, 0.97)));
-    bar.style.width = (p * 100).toFixed(1) + '%';
-    setStage(p < 0.25 ? 0 : p < 0.5 ? 1 : p < 0.75 ? 2 : 3);
   }
+  function goStage(i, instant) {
+    setStage(i);
+    tgtP = STEP_P[i];
+    if (reduce || instant) { curP = tgtP; tStart = 0; renderScene(curP); return; }
+    fromP = curP; tStart = performance.now();
+  }
+  let sl = performance.now();
+  const sceneLoop = now => {
+    const dt = Math.min(0.05, (now - sl) / 1000); sl = now;
+    if (sceneVisible && !document.hidden) {
+      drift += dt * 0.45;
+      if (tStart) {
+        const k = clamp((now - tStart) / 1700);
+        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        curP = lerp(fromP, tgtP, e);
+        if (k >= 1) tStart = 0;
+      }
+      renderScene(curP);
+    }
+    requestAnimationFrame(sceneLoop);
+  };
+  tabs.forEach(t => t.addEventListener('click', () => goStage(+t.dataset.i)));
+  nextBtn.addEventListener('click', () => {
+    if (curStage < 3) goStage(curStage + 1);
+    else {
+      const el = $('#contact');
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior: reduce ? 'auto' : 'smooth' });
+    }
+  });
+  scene.classList.add('is-live');
+  goStage(0, true);
+  if (!reduce) requestAnimationFrame(sceneLoop);
+  new IntersectionObserver(e => { sceneVisible = e[0].isIntersecting; }).observe(sceneSvg);
+
   const fitName = () => {
     const el = $('.footer__name'); if (!el) return;
     const box = el.parentElement.clientWidth - 2 * parseFloat(getComputedStyle(el.parentElement).paddingLeft || 0);
@@ -182,29 +222,6 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
   };
   document.fonts && document.fonts.ready.then(fitName); fitName();
   window.addEventListener('resize', fitName);
-
-  const sceneMode = !reduce && window.matchMedia('(min-width:1px)').matches;
-  if (!sceneMode) {
-    document.body.classList.add('no-scene');
-    scene.classList.add('is-live');
-    renderScene(1);
-    stages.forEach(s => s.classList.add('is-on'));
-  } else {
-    renderScene(0);
-    scene.classList.add('is-live');
-    let ticking = false;
-    const upd = () => {
-      ticking = false;
-      const r = scene.getBoundingClientRect();
-      const total = r.height - window.innerHeight;
-      renderScene(clamp(-r.top / total));
-      if (r.top <= 0) scene.classList.add('is-live');
-    };
-    const req = () => { if (!ticking) { ticking = true; requestAnimationFrame(upd); } };
-    window.addEventListener('scroll', req, { passive: true });
-    window.addEventListener('resize', req);
-    upd();
-  }
 
   /* ---------- picker + mini ring ---------- */
   const DATA = {
@@ -226,7 +243,7 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
       do: 'Осторожно возвращаем первый разговор вслух: что для вас было важно в паре и что стало недоступным.' },
     e: { v: 1.1, gap: 0.5,
       out: 'Вопрос «зачем?» по кругу, проверки, слёзы или холод. Каждый разговор возвращается к тому дню.',
-      under: 'Потеря опоры и боль у того, кому изменили; стыд и страх потерять семью у того, кто изменил. Оба заслуживают, чтобы их услышали.',
+      under: 'Потеря опоры, боль, стыд и страх потерять семью. У каждого своё переживание, и оно заслуживает, чтобы его услышали.',
       do: 'Сначала останавливаем «войну» и даём боли место. Решение, остаться или расстаться, принимаем без давления и спешки.' }
   };
   const miniSvg = $('#miniSvg');
@@ -324,6 +341,7 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
     try {
       const resp = await fetch(LEAD_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      goal('form_submit');
       status.textContent = 'Заявка отправлена. Отвечу и предложу время.';
       form.reset();
     } catch (err) {
@@ -333,4 +351,15 @@ const LEAD_ENDPOINT = 'https://lead-relay.leestygpt.workers.dev/lead/WD4KGBV5Q6'
       lab.textContent = 'Отправить заявку'; btn.disabled = false;
     }
   });
+
+  /* ---------- telegram goals ---------- */
+  $$('[data-goal]').forEach(a => a.addEventListener('click', () => goal(a.dataset.goal)));
+
+  /* ---------- sticky mobile CTA ---------- */
+  const sticky = $('#stickyCta'), contactEl = $('#contact');
+  let contactSeen = false;
+  const updSticky = () => sticky.classList.toggle('is-on', window.scrollY > 500 && !contactSeen);
+  new IntersectionObserver(e => { contactSeen = e[0].isIntersecting; updSticky(); }, { threshold: 0.15 }).observe(contactEl);
+  window.addEventListener('scroll', updSticky, { passive: true });
+  updSticky();
 })();
