@@ -164,7 +164,7 @@ const goal = name => { try { if (YM_ID && window.ym) ym(YM_ID, 'reachGoal', name
     curStage = i;
     stages.forEach((s, k) => s.classList.toggle('is-on', k === i));
     tabs.forEach((t, k) => { t.classList.toggle('is-on', k === i); t.setAttribute('aria-selected', k === i); });
-    nextBtn.firstElementChild.textContent = i === 3 ? 'Записаться на консультацию' : 'Дальше';
+    nextBtn.hidden = i === 3;
     [saysC, saysT].forEach((el, k) => {
       el.classList.add('swap');
       setTimeout(() => { el.textContent = says[i][k]; el.classList.remove('swap'); }, 250);
@@ -203,10 +203,6 @@ const goal = name => { try { if (YM_ID && window.ym) ym(YM_ID, 'reachGoal', name
   tabs.forEach(t => t.addEventListener('click', () => goStage(+t.dataset.i)));
   nextBtn.addEventListener('click', () => {
     if (curStage < 3) goStage(curStage + 1);
-    else {
-      const el = $('#contact');
-      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior: reduce ? 'auto' : 'smooth' });
-    }
   });
   scene.classList.add('is-live');
   goStage(0, true);

@@ -160,7 +160,11 @@ section{scroll-margin-top:72px}
 .review p{font:300 clamp(19px,1.6vw,23px)/1.4 var(--f-d);letter-spacing:-.015em}
 .review footer{margin-top:18px;font-size:16px;color:var(--ink2)}
 .review footer b{color:var(--ink);font-weight:600}
-.reviews__note{font-size:16px;color:var(--ink)}
+.reviews__note{font-size:16px;color:var(--ink);margin:clamp(28px,3.5vw,44px) 0 0;max-width:none}
+.scene__ctas{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.scene__ctas [hidden]{display:none}
+.scene__book{background:var(--teal)}
+.scene__book::before{background:var(--coral-d)}
 .reviews__note a{color:var(--ink)}
 
 /* price */
